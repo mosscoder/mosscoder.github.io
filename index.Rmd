@@ -1,0 +1,121 @@
+---
+title: "MPG Ranch RGIS Blog"
+author: "Kyle Doherty - Spatial Ecologist"
+date: 
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## October 28, 2021 - Introduction to spatial points 
+
+In this first blog we will look at how to manipulate spatial point data. These could originate as sets of coordinates found in a spreadsheet, an ESRI shapefile, or perhaps a Google Earth kml layer. Our objectives are to take coordinates in a geographic reference system (lat/long) and covert them to a projected system (UTM). Then we will view these data in an interactive map. Finally, we will save our data as an ESRI shapefile and Google Earth layer so that they are more easily shared with our colleagues.
+
+### Required packages
+
+This blog assumes you have a recent version of R and Rstudio installed, as well as basic familiarity with this software. Here is an [introductory guide](https://rstudio-education.github.io/hopr/starting.html).
+
+We will use the [sf package](https://r-spatial.github.io/sf/) for the majority of our spatial data manipulation. We will use [mapview package](https://r-spatial.github.io/mapview/) to view these data in an interactive format. Though not specific to GIS work, tidyverse package can greatly help with data wrangling. 
+
+Let's go ahead and install these packages...
+
+```{r, eval=FALSE}
+install.packages('sf')
+install.packages('mapview')
+install.packages('tidyverse')
+```
+
+... and load them.
+
+```{r, eval=TRUE, echo=TRUE}
+library(sf)
+library(mapview)
+library(tidyverse)
+```
+
+### Starting with a data.frame
+
+First we'll create a data.frame of three points in a geographic coordinate system. 
+
+```{r pressure, echo=TRUE}
+x_coords <- c(-113.997, -113.998, -113.999) #decimal degrees longitude
+y_coords<- c(46.723, 46.719, 46.717) #decimal degrees latitude
+
+coord_df_latlon <- data.frame(long = x_coords, lat = y_coords)
+
+print(coord_df_latlon)
+```
+
+It is common in speech to refer to latitude first and longitude second. However, you will find that many open source GIS tools refer to coordinates in terms of 'X' and 'Y' axes. In the context of decimal degrees, the x-axis is longitude and y-axis latitude. Always keep this in mind when working with data in decimal degrees. X usually precedes Y, and reversing the order can lead to headaches in your project.
+
+### A note on coordinate reference systems and EPSG codes 
+Coordinate reference systems (CRS) can be confusing, though sf package allows for easy management of them. In the context of the work at MPG, I advise committing to memory two numbers: a code for a geographic CRS (WGS84) and a code for a projected CRS (UTM Zone 11). MPG lies on the boundary of UTM Zone 11 and 12, though the majority of the property, including the grassland system west of Mt. Baldy is in Zone 11. For convenience, you may use Zone 11 CRS even when a point lies in Zone 12, as the resulting distortions are minute at zone boundaries. [EPSG codes](https://en.wikipedia.org/wiki/EPSG_Geodetic_Parameter_Dataset) are a shorthand CRS format that can save you time when transforming between systems. 
+
+```{r}
+wgs84_epsg <- 4326 #the CRS for latlon decimal degrees
+zone11_epsg <- 26911 #the CRS for NAD83 UTM Zone 11
+```
+
+### Instantiating spatial points and crs transformations
+Before we can turn our data.frame of coordinates into spatial data, we will need to tell sf pacakge what columns correspond to the x and y axes, and what the CRS of those data are. 
+```{r}
+spatial_points_ll <- st_as_sf(coord_df_latlon, #data.frame object with our coordinates
+                             coords = c('long', 'lat'), #column names of x and y axes
+                             crs = wgs84_epsg) #the reference system of those coordinates
+print(spatial_points_ll)
+```
+Now that sf package understands that these are spatial data, we can transform them into a projected CRS. 
+```{r}
+spatial_points_utms <- st_transform(spatial_points_ll, #our spatial points in latlon
+                                    crs = zone11_epsg) #the target projected crs
+print(spatial_points_utms)
+```
+### Viewing data interactively
+One challenge in using R, as opposed to Arc, for GIS workflows is that it can be difficult to interact with the data to verify that outcomes are as expected at both intermediate and final steps. This is where mapview package is useful, as you can rapidly display spatial data as of various forms as overlays on an interactive map from your R terminal.
+
+```{r,warning = FALSE}
+mapviewOptions(basemaps = "Esri.WorldImagery") #this sets the underlying base map 
+#other base map options: https://leaflet-extras.github.io/leaflet-providers/preview/
+mapview(spatial_points_utms)
+```
+
+### Adding and wrangling data with sf
+Using sf package we can append our points with other data. Here we'll add (imaginary) veg classes.  
+```{r}
+spatial_points_utms$veg_class <- c('forest', 'draw','forest')
+mapview(spatial_points_utms, zcol = 'veg_class')
+```
+We can easily subset our data based on veg class.
+```{r}
+forest_only <- spatial_points_utms %>% filter(veg_class == 'forest')
+mapview(forest_only, zcol = 'veg_class')
+```
+
+### Saving as a shapefile or Google Earth layer
+Now that we've transformed our data to a new crs and added relevant ecological information, let's save it for later use. 
+
+```{r}
+st_write(spatial_points_utms, dsn = 'points_in_utms.shp') #saves points as shapefile to current working directory
+```
+
+We can load these back in just as easily, and this is the function to use if you have an existing shapefile. 
+
+```{r}
+points_reloaded <- st_read('points_in_utms.shp')
+mapview(points_reloaded)
+```
+
+If we'd like to save our file as a Google Earth kml to share with a more general audience, we could do so as follows:
+
+```{r}
+st_write(points_reloaded , "points_in_utms.kml", driver = "kml")
+```
+
+### More complex operations
+While I plan to go over some of the more complex GIS operations that we could perform with sf package, this [cheatsheet](https://github.com/rstudio/cheatsheets/blob/master/sf.pdf) will give you a good overview of what's possible. If you'd like to learn more about interactive mapping, checkout the [mapview package docs](https://r-spatial.github.io/mapview/).
+```{r, echo=FALSE, results='hide'}
+file.remove(list.files(pattern = 'points_in'))
+```
+ <hr/> 

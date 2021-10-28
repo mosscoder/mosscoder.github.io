@@ -73,7 +73,7 @@ spatial_points_utms <- st_transform(spatial_points_ll, #our spatial points in la
 print(spatial_points_utms)
 ```
 ### Viewing data interactively
-One challenge in using R, as opposed to Arc, for GIS workflows is that it can be difficult to interact with the data to verify that outcomes are as expected at both intermediate and final steps. This is where mapview package is useful, as you can rapidly display spatial data as of various forms as overlays on an interactive map from your R terminal.
+One challenge in using R, as opposed to Arc, for GIS workflows is that it can be difficult to interact with the data to verify that outcomes are as expected at both intermediate and final steps. This is where mapview package is useful, as you can rapidly display spatial data of various forms as overlays on an interactive map from your R terminal.
 
 ```{r,warning = FALSE}
 mapviewOptions(basemaps = "Esri.WorldImagery") #this sets the underlying base map 
